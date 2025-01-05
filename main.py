@@ -11,6 +11,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import json
+import os
 
 app = FastAPI()
 
@@ -25,7 +26,7 @@ app.add_middleware(
 
 # Hugging Face API configuration
 API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
-headers = {"Authorization": f"Bearer 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"}
+headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
 
 # Initialize sentence transformer for embeddings
 embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
