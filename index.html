@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sarah Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <style>
+        /* Base animations */
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes moveBackground {
+            0% { background-position: 0 0; }
+            100% { background-position: 100% 100%; }
+        }
+        @keyframes rgbBorder {
+            0% { border-color: #ff0000; }
+            33% { border-color: #00ff00; }
+            66% { border-color: #0000ff; }
+            100% { border-color: #ff0000; }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @keyframes rotate {
+            0% { transform: rotate(0) }
+            100% { transform: rotate(360deg) }
+        }
+        @keyframes voice-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Animation classes */
+        .floating { animation: float 4s ease-in-out infinite; }
+        .twinkling { animation: twinkle 2s infinite; }
+        .animated-background {
+            background: linear-gradient(45deg, #000000, #1a1a1a, #000000);
+            background-size: 400% 400%;
+            animation: moveBackground 15s ease infinite;
+        }
+        .rgb-border {
+            border-width: 2px;
+            border-style: solid;
+            animation: rgbBorder 3s infinite;
+        }
+        .voice-pulse { animation: voice-pulse 1.5s infinite; }
+
+        /* Loader */
+        .loader {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+        .loader:before, .loader:after {
+            content: '';
+            border-radius: 50%;
+            position: absolute;
+            inset: 0;
+            box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.3) inset;
+        }
+        .loader:after {
+            box-shadow: 0 2px 0 #007BFF inset;
+            animation: rotate 2s linear infinite;
+        }
+
+        /* PDF Upload Section */
+        .pdf-upload-section {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(75, 85, 99, 0.4);
+            transition: all 0.3s ease;
+        }
+        .drop-zone {
+            border: 2px dashed #4a5568;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .pdf-upload-button {
+            transition: all 0.3s ease;
+        }
+        .pdf-upload-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Chat Messages */
+        .message-container {
+            transition: all 0.3s ease;
+        }
+        .message-bubble {
+            max-width: 80%;
+            word-wrap: break-word;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .message-bubble:hover {
+            transform: translateY(-2px);
+        }
+        .message-actions {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .message-bubble:hover .message-actions {
+            opacity: 1;
+        }
+
+        /* Input Area */
+        .input-container {
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(75, 85, 99, 0.4);
+        }
+        .chat-input {
+            transition: all 0.3s ease;
+        }
+        .chat-input:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+            transform: translateY(-1px);
+        }
+        .send-button {
+            transition: all 0.3s ease;
+        }
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Code and Copy */
+        .code-block {
+            background: #1e1e1e;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        .copy-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: opacity 0.2s ease;
+        }
+
+        /* Voice Recognition */
+        .voice-status {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .voice-status.show {
+            opacity: 1;
+        }
+
+        /* Dark Mode */
+        .dark .pdf-upload-section {
+            background: rgba(17, 24, 39, 0.95);
+        }
+        .dark .message-bubble {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .dark .input-container {
+            background: rgba(17, 24, 39, 0.95);
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            .floating, .twinkling, .animated-background, .rgb-border,
+            .loader, .message-bubble:hover, .pdf-upload-button:hover,
+            .send-button:hover {
+                animation: none;
+                transform: none;
+                transition: none;
+            }
+        }
+
+        /* Focus styles */
+        :focus {
+            outline: 2px solid #007BFF;
+            outline-offset: 2px;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 640px) {
+            .message-bubble {
+                max-width: 90%;
+            }
+            .floating {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-black text-gray-100 font-roboto relative overflow-hidden animated-background">
+    <!-- Background Stars -->
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+        <img alt="Floating decorative star" class="floating twinkling absolute top-10 left-10 w-10 h-10 rounded-full opacity-75" src="https://storage.googleapis.com/a1aa/image/yk0e8LFf93qfqJ7waFr0ZEDLBGb1EfeOpofBHAj3aAgzySdAF.jpg" width="100" height="100"/>
+        <img alt="Floating decorative star" class="floating twinkling absolute top-20 right-20 w-10 h-10 rounded-full opacity-75" src="https://storage.googleapis.com/a1aa/image/yk0e8LFf93qfqJ7waFr0ZEDLBGb1EfeOpofBHAj3aAgzySdAF.jpg" width="100" height="100"/>
+        <img alt="Floating decorative star" class="floating twinkling absolute bottom-10 left-20 w-10 h-10 rounded-full opacity-75" src="https://storage.googleapis.com/a1aa/image/yk0e8LFf93qfqJ7waFr0ZEDLBGb1EfeOpofBHAj3aAgzySdAF.jpg" width="100" height="100"/>
+        <img alt="Floating decorative star" class="floating twinkling absolute bottom-20 right-10 w-10 h-10 rounded-full opacity-75" src="https://storage.googleapis.com/a1aa/image/yk0e8LFf93qfqJ7waFr0ZEDLBGb1EfeOpofBHAj3aAgzySdAF.jpg" width="100" height="100"/>
+    </div>
+    
+    <div class="flex flex-col h-screen relative z-10">
+        <!-- Header -->
+        <header class="bg-blue-600 dark:bg-blue-800 text-white p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Sarah Chatbot</h1>
+            <nav>
+                <ul class="flex space-x-4">
+                    <li><a href="#" class="hover:underline">Home</a></li>
+                    <li><a href="#" class="hover:underline">About</a></li>
+                </ul>
+            </nav>
+            <div class="flex items-center space-x-4">
+                <button id="clear-chat" class="p-2 hover:bg-blue-700 rounded-lg transition-colors" title="Clear Chat">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button id="theme-toggle" class="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg" onclick="toggleTheme()">
+                    <i class="fas fa-adjust"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- PDF Upload Zone -->
+        <div id="pdf-drop-zone" class="drop-zone bg-gray-900 p-4 text-center">
+            <div class="flex items-center justify-center space-x-4">
+                <label class="cursor-pointer hover:bg-blue-700 bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-file-upload mr-2"></i>Upload PDF
+                    <input type="file" id="pdf-upload" accept=".pdf" class="hidden">
+                </label>
+                <div id="pdf-status" class="text-sm text-gray-400"></div>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="use-pdf" checked class="form-checkbox h-4 w-4 text-blue-600">
+                    <label for="use-pdf" class="text-sm">Use PDF context</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="flex-grow flex flex-col p-4 overflow-auto" id="chat-container">
+            <div class="flex flex-col space-y-4" id="messages">
+                <!-- Welcome message -->
+                <div class="flex justify-start">
+                    <div class="bg-gray-300 dark:bg-gray-700 p-4 rounded-lg max-w-xs">
+                        <p>Hello! I'm Sarah, your AI assistant. How can I help you today?</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="bg-white dark:bg-gray-800 p-4">
+            <div class="flex items-center space-x-2 mb-2">
+                <button id="voice-input" class="p-2 text-gray-400 hover:text-blue-500 transition-colors">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <div class="flex-grow relative">
+                    <input type="text" id="message-input" class="w-full border rgb-border rounded-lg p-2 pr-10 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100" placeholder="Type your message...">
+                    <div class="absolute right-2 top-2 text-gray-400 text-sm" id="char-count">0/2000</div>
+                </div>
+                <button onclick="sendMessage()" class="bg-blue-600 dark:bg-blue-700 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+        <span class="loader" id="loader" style="display: none;"></span>
+    </div>
+
+    <script>
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Initialize theme
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+            // Initialize highlight.js
+            hljs.highlightAll();
+            // Initialize voice recognition
+            initializeSpeechRecognition();
+        });
+
+        // Voice Recognition
+        let recognition;
+        let isRecording = false;
+
+        function initializeSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    updateVoiceButton(true);
+                };
+
+                recognition.onend = function() {
+                    isRecording = false;
+                    updateVoiceButton(false);
+                };
+
+                recognition.onresult = handleVoiceResult;
+                recognition.onerror = handleVoiceError;
+
+                const voiceButton = document.getElementById('voice-input');
+                voiceButton.addEventListener('click', toggleVoiceRecognition);
+                return true;
+            }
+            document.getElementById('voice-input').style.display = 'none';
+            return false;
+        }
+
+        function updateVoiceButton(isRecording) {
+            const voiceButton = document.getElementById('voice-input');
+            if (isRecording) {
+                voiceButton.classList.add('text-red-500', 'voice-pulse');
+                voiceButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+            } else {
+                voiceButton.classList.remove('text-red-500', 'voice-pulse');
+                voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        }
+
+        function toggleVoiceRecognition() {
+            if (!isRecording) {
+                recognition.start();
+            } else {
+                recognition.stop();
+            }
+        }
+
+        function handleVoiceResult(event) {
+            let finalTranscript = '';
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                    // Check for voice commands
+                    handleVoiceCommand(transcript.toLowerCase());
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            if (finalTranscript !== '') {
+                document.getElementById('message-input').value = finalTranscript;
+                updateCharCount();
+            }
+        }
+
+        function handleVoiceError(event) {
+            console.error('Speech recognition error:', event.error);
+            isRecording = false;
+            updateVoiceButton(false);
+            
+            const pdfStatus = document.getElementById('pdf-status');
+            pdfStatus.textContent = `Voice recognition error: ${event.error}`;
+            setTimeout(() => pdfStatus.textContent = '', 3000);
+        }
+
+        function handleVoiceCommand(transcript) {
+            const commands = {
+                'clear chat': () => document.getElementById('clear-chat').click(),
+                'toggle theme': () => document.getElementById('theme-toggle').click(),
+                'upload pdf': () => document.getElementById('pdf-upload').click(),
+                'send message': () => sendMessage()
+            };
+
+            for (const [command, action] of Object.entries(commands)) {
+                if (transcript.includes(command)) {
+                    action();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // PDF Upload Handling
+        const dropZone = document.getElementById('pdf-drop-zone');
+        const pdfUpload = document.getElementById('pdf-upload');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('active');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('active');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        pdfUpload.addEventListener('change', function(e) {
+            handleFiles(this.files);
+        });
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        async function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type === 'application/pdf') {
+                    await uploadPDF(file);
+                } else {
+                    document.getElementById('pdf-status').textContent = 'Please upload a PDF file';
+                }
+            }
+        }
+
+        async function uploadPDF(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const pdfStatus = document.getElementById('pdf-status');
+            pdfStatus.textContent = 'Uploading PDF...';
+            
+            try {
+                const response = await fetch('/upload-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Upload failed');
+                
+                const data = await response.json();
+                pdfStatus.textContent = `PDF processed successfully (${data.chunks} chunks)`;
+                addMessage('PDF uploaded and processed. You can now ask questions about its content!', false);
+            } catch (error) {
+                console.error('Error:', error);
+                pdfStatus.textContent = 'Failed to process PDF';
+            }
+        }
+
+        // Message handling
+        function addMessage(content, isUser = false) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            
+            // Process markdown and code blocks
+            const processedContent = marked.parse(content);
+            
+            messageDiv.innerHTML = `
+                <div class="relative group">
+                    <div class="${isUser ? 'bg-blue-500 dark:bg-blue-700 text-white' : 'bg-gray-300 dark:bg-gray-700'} p-4 rounded-lg max-w-xs message-bubble">
+                        <div class="markdown-content">${processedContent}</div>
+                        <div class="text-xs text-gray-400 mt-2">${timestamp}</div>
+                        <div class="message-actions absolute top-2 right-2 flex space-x-2">
+                            <button onclick="copyMessage(this)" class="text-gray-400 hover:text-white transition-colors" title="Copy message">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button onclick="toggleReaction(this)" class="text-gray-400 hover:text-white transition-colors reaction-button" title="React">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+            messageDiv.scrollIntoView({ behavior: 'smooth' });
+
+            // Highlight code blocks
+            messageDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+            });
+        }
+
+        function copyMessage(button) {
+            const messageContent = button.closest('.message-bubble').querySelector('.markdown-content').textContent;
+            navigator.clipboard.writeText(messageContent).then(() => {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'copy-tooltip';
+                tooltip.textContent = 'Copied!';
+                button.appendChild(tooltip);
+                setTimeout(() => tooltip.remove(), 2000);
+            });
+        }
+
+        function toggleReaction(button) {
+            button.classList.toggle('text-red-500');
+        }
+
+        // Character counter
+        const messageInput = document.getElementById('message-input');
+        const charCount = document.getElementById('char-count');
+        const MAX_CHARS = 2000;
+
+        function updateCharCount() {
+            const length = messageInput.value.length;
+            charCount.textContent = `${length}/${MAX_CHARS}`;
+            if (length > MAX_CHARS) {
+                messageInput.value = messageInput.value.slice(0, MAX_CHARS);
+            }
+        }
+
+        messageInput.addEventListener('input', updateCharCount);
+
+        // Clear chat
+        document.getElementById('clear-chat').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                document.getElementById('messages').innerHTML = '';
+                addMessage('Chat history cleared. How can I help you?', false);
+            }
+        });
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            const loader = document.getElementById('loader');
+            const usePdf = document.getElementById('use-pdf').checked;
+            
+            if (message && message.length <= MAX_CHARS) {
+                addMessage(message, true);
+                input.value = '';
+                updateCharCount();
+
+                loader.style.display = 'block';
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            content: message,
+                            use_pdf: usePdf
+                        }),
+                    });
+
+                    if (!response.ok) throw new Error('Network response was not ok');
+
+                    const data = await response.json();
+                    addMessage(data.response);
+                    
+                    if (usePdf) {
+                        const pdfStatus = document.getElementById('pdf-status');
+                        pdfStatus.textContent = data.used_pdf 
+                            ? `Response used ${data.chunks_used} PDF chunks`
+                            : 'No relevant PDF content found';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('Sorry, I encountered an error. Please try again.');
+                } finally {
+                    loader.style.display = 'none';
+                }
+            }
+        }
+
+        // Handle Enter key
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
